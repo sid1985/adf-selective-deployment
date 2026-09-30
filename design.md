@@ -7,13 +7,13 @@ flowchart TD
     subgraph LAYER1["🚀 LAYER 1 — SELECTIVE DEPLOYMENT (CI/CD)"]
         direction TB
 
-        DEV["👨‍💻 Developer\nModifies pl_di_if144e"]
+        DEV["👨‍💻 Developer\nModifies Target_Pipeline_A"]
         PR["Pull Request Raised"]
         VALIDATE["validate-on-pr.yml\n─────────────────\n✔ Manifest well-formed\n✔ All pipelines exist\n✔ Dependency closure valid"]
         MERGE["Merge to develop branch"]
 
         subgraph BUILD["JOB 2 — adf-build"]
-            MANIFEST["📄 pipelines.json\n─────────────────\npipelines: [pl_di_if144e]\nexcludePipelines: [pl_di_common_env_setup]"]
+            MANIFEST["📄 pipelines.json\n─────────────────\npipelines: [Target_Pipeline_A]\nexcludePipelines: [pl_shared_common_env_setup]"]
             SELECT["select_adf_subset.py\n─────────────────\nBFS graph walk\n→ child pipelines\n→ datasets\n→ linked services\n→ AKV LS → credentials/IR\nStages → build/adf_subset/"]
             NPM["npm export\n→ ARMTemplateForFactory.json"]
             STRIP["strip_arm_resources.py\n─────────────────\nStrips: linkedServices\nStrips: integrationRuntimes\nStrips: credentials\nStrips: globalparameters\nStrips: excludePipelines by name\nCleans: dangling dependsOn\n→ ARMTemplateForFactory.safe.json"]
@@ -27,7 +27,7 @@ flowchart TD
         subgraph DEPLOY["JOB 3 — deploy (per environment)"]
             DOWNLOAD["Download adf-arm artifact"]
             AZLOGIN["az login\nNONPROD or PROD credentials"]
-            AZDEPLOY["az deployment group create\n--mode Incremental\n─────────────────\n✅ pl_di_if144e deployed\n✅ Dependencies deployed\n🔒 30 other pipelines untouched\n🔒 Infra resources protected"]
+            AZDEPLOY["az deployment group create\n--mode Incremental\n─────────────────\n✅ Target_Pipeline_A deployed\n✅ Dependencies deployed\n🔒 30 other pipelines untouched\n🔒 Infra resources protected"]
         end
 
         subgraph PROMOTE["PROMOTION PATH"]
@@ -59,23 +59,23 @@ flowchart TD
             BLOB["☁️ Azure Blob\n(Azure IR)"]
         end
 
-        TIDAL["⏰ TIDAL SCHEDULER\n─────────────────\nREST API → ADF\npipeline: pl_di_common_orchestrator\nparams:\n  pipeline_name: pl_di_if144e\n  source_type: oracle\n  watermark_key: if144e_source"]
+        TIDAL["⏰ TIDAL SCHEDULER\n─────────────────\nREST API → ADF\npipeline: pl_common_adf_orchestrator\nparams:\n  pipeline_name: Target_Pipeline_A\n  source_type: oracle\n  watermark_key: if144e_source"]
 
-        subgraph ORCH["pl_di_common_orchestrator (single reusable pipeline)"]
+        subgraph ORCH["pl_common_adf_orchestrator (single reusable pipeline)"]
             META["GetMetadata / Lookup\n─────────────────\nOracle: SELECT COUNT(*), MAX(updated_date)\nFile:   lastModified + size\nBlob:   lastModified"]
             WM["Lookup: adf_watermarks\n─────────────────\nSELECT last_modified, last_row_count\nWHERE watermark_key = @param"]
             COND{"IfCondition\nSource unchanged\nsince last run?"}
             SKIP["SetVariable: skipped\n─────────────────\n⚡ ~8 seconds\n💰 Zero compute cost\n✅ Tidal sees: SUCCESS"]
-            EXEC["ExecutePipeline\n─────────────────\n@param.pipeline_name\n(pl_di_if144e, pl_di_if065b_master etc.)\n\nOn success:\nUPDATE adf_watermarks"]
+            EXEC["ExecutePipeline\n─────────────────\n@param.pipeline_name\n(Target_Pipeline_A, Target_Pipeline_B etc.)\n\nOn success:\nUPDATE adf_watermarks"]
         end
 
         subgraph WMTABLE["Azure SQL — adf_watermarks"]
-            WMROW["watermark_key | pipeline_name | last_modified | last_row_count\nif144e_source  | pl_di_if144e  | 2026-09-29    | 142857\nif065b_source  | pl_di_if065b  | 2026-09-28    | 3921"]
+            WMROW["watermark_key | pipeline_name | last_modified | last_row_count\nif144e_source  | Target_Pipeline_A  | YYYY-MM-DD    | <row count>\nif065b_source  | pl_di_if065b  | YYYY-MM-DD    | 3921"]
         end
 
         subgraph REALPIPELINES["Existing Processing Pipelines (unchanged)"]
-            PL1["pl_di_if144e"]
-            PL2["pl_di_if065b_master\n→ pl_di_if065b_incr\n→ pl_di_if065b_init"]
+            PL1["Target_Pipeline_A"]
+            PL2["Target_Pipeline_B\n→ pl_di_if065b_incr\n→ pl_di_if065b_init"]
             PL3["pl_di_if101c_pre_edq\npl_di_if101c_post_edq"]
             PLN["pl_di_if... (all others)"]
         end
