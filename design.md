@@ -1,4 +1,8 @@
-///mermaid
+# Architecture Diagram
+
+## Current Architecture
+
+```mermaid
 flowchart TD
     subgraph LAYER1["🚀 LAYER 1 — SELECTIVE DEPLOYMENT (CI/CD)"]
         direction TB
@@ -98,7 +102,7 @@ flowchart TD
         S3["💰 Compute Cost\nPipeline only runs\nwhen source changes"]
         S4["🔒 Infra Safety\nLinked services and IRs\nprotected from overwrite"]
     end
-    ///mermaid
 
     LAYER1 --> SAVINGS
     LAYER2 --> SAVINGS
+```
